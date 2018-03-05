@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: simulationqueue
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: simulationqueue
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: simulationqueue
+    namespace: default
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: hurricanesimulationqueue
+  labels:
+    app: hurricanesimulationqueue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hurricanesimulationqueue
+  template:
+    metadata:
+      labels:
+        app: hurricanesimulationqueue
+    spec:
+      serviceAccountName: simulationqueue
+      containers:
+      - name: hurricanesimulationqueue
+        image: registry.james-sweet.com/omegaice/in-cluster:latest
+      imagePullSecrets:
+        - name: localregistry
