@@ -20,22 +20,34 @@ subjects:
 apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
-  name: hurricanesimulationqueue
+  name: simulationqueue
   labels:
-    app: hurricanesimulationqueue
+    app: simulationqueue
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: hurricanesimulationqueue
+      app: simulationqueue
   template:
     metadata:
       labels:
-        app: hurricanesimulationqueue
+        app: simulationqueue
     spec:
       serviceAccountName: simulationqueue
-      containers:
-      - name: hurricanesimulationqueue
-        image: registry.james-sweet.com/omegaice/in-cluster:latest
       imagePullSecrets:
-        - name: localregistry
+        - name: awsecr-cred
+      containers:
+      - name: simulationqueue
+        image: 234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:latest
+        imagePullPolicy: Always
+        env:
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: simulationqueue
+                key: AWS_ACCESS_KEY_ID
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: simulationqueue
+                key: AWS_SECRET_ACCESS_KEY
