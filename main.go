@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"strings"
+	"path/filepath"
 	"encoding/json"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,7 +63,7 @@ func main() {
         }
         log.Fatalf("Unable to queue %q, %v.\n", name, err)
 	}
-
+	
 	// Setup Kubernetes
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -95,8 +96,10 @@ func main() {
 				log.Println("error:", err)
 			}
 			
-			if data.Data[0].Source == "aws:s3" && data.Data[0].Event == "ObjectCreated:Put" && strings.Contains(data.Data[0].Data.Object.Name, "input_params.json") {
+			if data.Data[0].Source == "aws:s3" && data.Data[0].Event == "ObjectCreated:Put" && strings.Contains(data.Data[0].Data.Object.Name, "input.geojson") {
 				jobsClient := clientset.BatchV1().Jobs("default")
+
+				folder := filepath.Dir(data.Data[0].Data.Object.Name)
 
 				var falseVal = false
 				batchJob := &batchv1.Job{
@@ -119,19 +122,42 @@ func main() {
 								Containers: []corev1.Container{
 									{
 										Name:    "runup",
-										Image:   "perl",
-										Command: []string{"sleep", "30"},
+										Command: []string{"/app/execute.sh", folder},
+										Image:   "234514569215.dkr.ecr.us-east-1.amazonaws.com/model:1.4",
 										SecurityContext: &corev1.SecurityContext{
 											Privileged: &falseVal,
 										},
 										ImagePullPolicy: corev1.PullPolicy(corev1.PullIfNotPresent),
-										Env:             []corev1.EnvVar{},
+										Env:             []corev1.EnvVar{
+											corev1.EnvVar{
+												Name: "AWS_ACCESS_KEY_ID",
+												ValueFrom: &corev1.EnvVarSource{
+													SecretKeyRef: &corev1.SecretKeySelector{
+														LocalObjectReference: corev1.LocalObjectReference{
+															Name: "simulationqueue",
+														},
+														Key: "AWS_ACCESS_KEY_ID",
+													},
+												},
+											},
+											corev1.EnvVar{
+												Name: "AWS_SECRET_ACCESS_KEY",
+												ValueFrom: &corev1.EnvVarSource{
+													SecretKeyRef: &corev1.SecretKeySelector{
+														LocalObjectReference: corev1.LocalObjectReference{
+															Name: "simulationqueue",
+														},
+														Key: "AWS_SECRET_ACCESS_KEY",
+													},
+												},
+											},
+										},
 										VolumeMounts:    []corev1.VolumeMount{},
 									},
 								},
 								RestartPolicy:    corev1.RestartPolicyOnFailure,
 								Volumes:          []corev1.Volume{},
-								ImagePullSecrets: []corev1.LocalObjectReference{},
+								ImagePullSecrets: []corev1.LocalObjectReference{ corev1.LocalObjectReference{Name: "awsecr-cred"} },
 							},
 						},
 					},
