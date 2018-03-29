@@ -40,6 +40,8 @@ spec:
       - name: simulationqueue
         image: 234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:latest
         imagePullPolicy: Always
+        ports:
+        - containerPort: 9090
         env:
           - name: AWS_ACCESS_KEY_ID
             valueFrom:
@@ -51,3 +53,17 @@ spec:
               secretKeyRef:
                 name: simulationqueue
                 key: AWS_SECRET_ACCESS_KEY
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simulationqueue
+  labels:
+    app: simulationqueue
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9090
+      protocol: TCP
+  selector:
+    app: simulationqueue
