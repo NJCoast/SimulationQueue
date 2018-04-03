@@ -366,7 +366,6 @@ func (s *Socket) Read() {
 	s.Connection.SetReadLimit(1024)
 	s.Connection.SetReadDeadline(time.Now().Add(60 * time.Second))
 	s.Connection.SetPongHandler(func(string) error {
-		log.Println("Pong")
 		s.Connection.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
 	})
@@ -425,7 +424,6 @@ func (s *Socket) Write() {
 				return
 			}
 		case <-ticker.C:
-			log.Println("Ping")
 			if err := s.Connection.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				return
 			}
