@@ -45,10 +45,10 @@ func (s *Socket) Read() {
 		s.Connection.Close()
 	}()
 
-	c.SetReadLimit(2048)
-	c.SetReadDeadline(time.Now().Add(60 * time.Second))
-	c.SetPongHandler(func(string) error { 
-		c.SetReadDeadline(time.Now().Add(60 * time.Second)); 
+	s.Connection.SetReadLimit(2048)
+	s.Connection.SetReadDeadline(time.Now().Add(60 * time.Second))
+	s.Connection.SetPongHandler(func(string) error { 
+		s.Connection.SetReadDeadline(time.Now().Add(60 * time.Second)); 
 		return nil 
 	})
 
