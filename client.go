@@ -47,9 +47,9 @@ func (s *Socket) Read() {
 
 	s.Connection.SetReadLimit(2048)
 	s.Connection.SetReadDeadline(time.Now().Add(60 * time.Second))
-	s.Connection.SetPongHandler(func(string) error { 
-		s.Connection.SetReadDeadline(time.Now().Add(60 * time.Second)); 
-		return nil 
+	s.Connection.SetPongHandler(func(string) error {
+		s.Connection.SetReadDeadline(time.Now().Add(60 * time.Second))
+		return nil
 	})
 
 	for {
@@ -76,6 +76,7 @@ func (s *Socket) Read() {
 						found = true
 						s.Send <- "DATA:" + string(data)
 						s.CurrentJob = &folder[i]
+						s.CurrentJob.Start = time.Now()
 						s.CurrentJob.Worker = s.WorkerID
 						break
 					}
@@ -88,6 +89,7 @@ func (s *Socket) Read() {
 			}
 		case "COMPLETE":
 			jobsCompleted.Inc()
+			jobsDuration.Observe(time.Now().Sub(s.CurrentJob.Start).Seconds())
 			s.CurrentJob.Complete = true
 			s.CurrentJob = nil
 		}

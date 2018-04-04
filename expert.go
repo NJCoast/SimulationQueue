@@ -23,7 +23,7 @@ func singleHandler(w http.ResponseWriter, r *http.Request) {
 
 		username := r.FormValue("name")
 		id := r.FormValue("id")
-		
+
 		if username == "" || id == "" {
 			return
 		}

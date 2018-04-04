@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -40,18 +41,18 @@ type S3ObjectRecord struct {
 
 type Job struct {
 	ID       string `json:"string"`
-	Folder	string `json:"folder"`
+	Folder   string `json:"folder"`
 	Worker   string
 	Complete bool
 	SLR      float64 `json:"slr"`
 	Tide     int     `json:"tide"`
 	Analysis int     `json:"analysis"`
+	Start    time.Time
 }
 
 var ParameterQueue map[string][]Job
 var name string
 var sess *session.Session
-
 
 var (
 	jobsCreated = prometheus.NewCounter(
@@ -66,11 +67,44 @@ var (
 			Help: "Number of jobs completed.",
 		},
 	)
+	jobsDuration = prometheus.NewSummary(prometheus.SummaryOpts{
+		Name:       "queue_jobs_duration",
+		Help:       "The duration of job execution.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+	})
+
+	inFlightGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "in_flight_requests",
+		Help: "A gauge of requests currently being served by the wrapped handler.",
+	})
+	counter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "api_requests_total",
+			Help: "A counter for requests to the wrapped handler.",
+		},
+		[]string{"code", "method"},
+	)
+	duration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "request_duration_seconds",
+			Help:    "A histogram of latencies for requests.",
+			Buckets: []float64{.25, .5, 1, 2.5, 5, 10},
+		},
+		[]string{"handler", "method"},
+	)
+	responseSize = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "response_size_bytes",
+			Help:    "A histogram of response sizes for requests.",
+			Buckets: []float64{200, 500, 900, 1500},
+		},
+		[]string{},
+	)
 )
 
 func init() {
-	prometheus.MustRegister(jobsCreated)
-	prometheus.MustRegister(jobsCompleted)
+	prometheus.MustRegister(jobsCreated, jobsCompleted, jobsDuration)
+	prometheus.MustRegister(inFlightGauge, counter, duration, responseSize)
 }
 
 func main() {
@@ -91,8 +125,25 @@ func main() {
 	go S3MessageQueue(name, &ParameterQueue)
 
 	http.HandleFunc("/", clientHandler)
-	http.HandleFunc("/single", singleHandler)
-	http.HandleFunc("/status", statusHandler)
+
+	singleChain := promhttp.InstrumentHandlerInFlight(inFlightGauge,
+		promhttp.InstrumentHandlerDuration(duration.MustCurryWith(prometheus.Labels{"handler": "expert"}),
+			promhttp.InstrumentHandlerCounter(counter,
+				promhttp.InstrumentHandlerResponseSize(responseSize, http.HandlerFunc(singleHandler)),
+			),
+		),
+	)
+	http.Handle("/single", singleChain)
+
+	statusChain := promhttp.InstrumentHandlerInFlight(inFlightGauge,
+		promhttp.InstrumentHandlerDuration(duration.MustCurryWith(prometheus.Labels{"handler": "status"}),
+			promhttp.InstrumentHandlerCounter(counter,
+				promhttp.InstrumentHandlerResponseSize(responseSize, http.HandlerFunc(statusHandler)),
+			),
+		),
+	)
+	http.Handle("/status", statusChain)
+
 	http.Handle("/metrics", promhttp.Handler())
 	log.Fatalln(http.ListenAndServe(fmt.Sprintf(":%d", 9090), nil))
 }
