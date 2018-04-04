@@ -20,7 +20,7 @@ script:
 - docker push 234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:$TRAVIS_BRANCH
 after_success:
 - echo $VPNPASS | sudo openconnect vpnaccess.nd.edu -b --user=$VPNUSER --passwd-on-stdin
-- if [ "$TRAVIS_BRANCH" = "master" ]; then $HOME/kubectl -n default set image deployment/simulationqueue simulationqueue=234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:$TRAVIS_BRANCH; fi
+- if [ "$TRAVIS_BRANCH" = "master" ]; then $HOME/kubectl -n staging set image deployment/staging-cyberspatial-queue-master cyberspatial=234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:$TRAVIS_BRANCH; fi
 env:
   global:
   - secure: UCSTsHurnrklWLVGnPZof/6ykYAfH7H6KMue3AKFpWq5u02lio1gTqic/ADm1pqE6Hmu1TXdVxnSOY1OaPkSn4S/mjmQfBQnpeBz6d85aehqc0USPTsUDiTXzApCcCmPJ1YMlcA4MV8m9jN7SwpOrHLN/ksHLs4inbermgzAPbTOb7Y7KI0d/B6vevcy0PuC7dtkN8Ixoc1v641zV3LzYg/bFrGrTPYDnsGqABjSoLyQ+1yynQ7cLfV8boGw2VqSbN/Kkn8KrDW0N4IhtX627d7GAjh8kItipBw2ZB7HBefyytvbCfQQ7diYSTF2lNaLVbkrxMk6tYcNc13Yfo8FJHbzOiDTnIJXQYWr6MP1iPrPzTKTa5tyIJv4mO0M7SSLtGXSYT8mj+eR39rn2ZYDle/ZmQpuKnficSbnaU3CqorBjpU5Qm60gqr3H01eQdg0n4/pyPhWvtciXP81vjx9jiCzgrhrQXnqVlfn6HZtG/6CUEkxKQz0GK4Q98IbhgNwG1/JTZ4gyH5OsJyevS/WvpseN7Om9Wp4IrdHPINIP6AG1Q69VUn7UOVn9E4aA6c3M5KESnJRXF4+ATQjDWGgt79X4BovlcfrfX0EaMXHWejr/tpAMww57Naxs0YIX8/Eo8WgDY1eQFqBdZ7mg3/kCrDkA8L9hTrEmHKpexsjSXk=
