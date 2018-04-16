@@ -51,7 +51,7 @@ type Job struct {
 }
 
 var ParameterQueue map[string][]Job
-var name string
+var name, folder string
 var sess *session.Session
 
 var (
@@ -109,6 +109,7 @@ func init() {
 
 func main() {
 	flag.StringVar(&name, "n", "", "Queue name")
+	flag.StringVar(&folder, "f", "/", "Folder to watch")
 	flag.Parse()
 
 	if len(name) == 0 {
@@ -180,31 +181,35 @@ func S3MessageQueue(qName string, pQueue *map[string][]Job) {
 				log.Println("error:", err)
 			}
 
-			if data.Data[0].Data.Object.Size > 0 {
-				if data.Data[0].Source == "aws:s3" && data.Data[0].Event == "ObjectCreated:Put" && strings.Contains(data.Data[0].Data.Object.Name, "input_params.json") {
-					folder := filepath.Dir(data.Data[0].Data.Object.Name)
+			record := data.Data[0]
+			if record.Source == "aws:s3" && record.Event == "ObjectCreated:Put" {
+				object := record.Data.Object
+				if object.Size > 0 && strings.HasPrefix(object.Name, folder) {
+					if strings.Contains(object.Name, "input_params.json") {
+						folder := filepath.Dir(object.Name)
 
-					// Create Job Queue
-					var jobs []Job
-					jobs = append(jobs, Job{ID: uuid.New().String(), Folder: folder, Complete: false, SLR: -1, Tide: -1, Analysis: -1})
-					jobsCreated.Inc()
-					(*pQueue)[folder] = jobs
-				}
+						// Create Job Queue
+						var jobs []Job
+						jobs = append(jobs, Job{ID: uuid.New().String(), Folder: folder, Complete: false, SLR: -1, Tide: -1, Analysis: -1})
+						jobsCreated.Inc()
+						(*pQueue)[folder] = jobs
+					}
 
-				if data.Data[0].Source == "aws:s3" && data.Data[0].Event == "ObjectCreated:Put" && strings.Contains(data.Data[0].Data.Object.Name, "input.geojson") {
-					folder := filepath.Dir(data.Data[0].Data.Object.Name)
+					if strings.Contains(object.Name, "input.geojson") {
+						folder := filepath.Dir(object.Name)
 
-					// Create Job Queue
-					var jobs []Job
-					for slr := 0.0; slr <= 1.5; slr += 0.5 {
-						for tide := 0; tide < 3; tide++ {
-							for analysis := 0; analysis < 3; analysis++ {
-								jobs = append(jobs, Job{ID: uuid.New().String(), Folder: folder, Complete: false, SLR: slr, Tide: tide, Analysis: analysis})
-								jobsCreated.Inc()
+						// Create Job Queue
+						var jobs []Job
+						for slr := 0.0; slr <= 1.5; slr += 0.5 {
+							for tide := 0; tide < 3; tide++ {
+								for analysis := 0; analysis < 3; analysis++ {
+									jobs = append(jobs, Job{ID: uuid.New().String(), Folder: folder, Complete: false, SLR: slr, Tide: tide, Analysis: analysis})
+									jobsCreated.Inc()
+								}
 							}
 						}
+						(*pQueue)[folder] = jobs
 					}
-					(*pQueue)[folder] = jobs
 				}
 			}
 

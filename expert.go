@@ -31,7 +31,7 @@ func singleHandler(w http.ResponseWriter, r *http.Request) {
 		result, err := s3manager.NewUploader(sess).Upload(&s3manager.UploadInput{
 			ACL:         aws.String("public-read"),
 			Bucket:      aws.String("simulation.njcoast.us"),
-			Key:         aws.String(fmt.Sprintf("simulation/%s/%s/input_params.json", username, id)),
+			Key:         aws.String(fmt.Sprintf("%s/simulation/%s/%s/input_params.json", folder, username, id)),
 			ContentType: aws.String("application/json"),
 			Body:        r.Body,
 		})
@@ -58,7 +58,7 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		folder := fmt.Sprintf("simulation/%s/%s", username, id)
+		folder := fmt.Sprintf("%s/simulation/%s/%s", folder, username, id)
 
 		result := struct {
 			Complete bool `json:"complete"`
