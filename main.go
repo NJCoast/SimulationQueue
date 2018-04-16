@@ -172,17 +172,17 @@ func S3MessageQueue(qName string, pQueue *map[string][]Job) {
 			log.Fatalf("Unable to receive message from queue %q, %v.\n", qName, err)
 		}
 
-		if len(result.Messages) > 0 {
-			log.Printf("Received %d messages.\n", len(result.Messages))
-			log.Println(result.Messages)
-
+		for _, message := range result.Messages {
 			var data Records
-			if err := json.NewDecoder(strings.NewReader(*result.Messages[0].Body)).Decode(&data); err != nil {
+			if err := json.NewDecoder(strings.NewReader(*message.Body)).Decode(&data); err != nil {
 				log.Println("error:", err)
 			}
 
 			record := data.Data[0]
 			if record.Source == "aws:s3" && record.Event == "ObjectCreated:Put" {
+				log.Printf("Received %d messages.\n", len(result.Messages))
+				log.Println(result.Messages)
+
 				object := record.Data.Object
 				if object.Size > 0 && strings.HasPrefix(object.Name, folder) {
 					if strings.Contains(object.Name, "input_params.json") {
@@ -210,12 +210,12 @@ func S3MessageQueue(qName string, pQueue *map[string][]Job) {
 						}
 						(*pQueue)[folder] = jobs
 					}
-				}
-			}
 
-			if _, err := svc.DeleteMessage(&sqs.DeleteMessageInput{QueueUrl: resultURL.QueueUrl, ReceiptHandle: result.Messages[0].ReceiptHandle}); err != nil {
-				log.Println("Delete Error", err)
-				return
+					if _, err := svc.DeleteMessage(&sqs.DeleteMessageInput{QueueUrl: resultURL.QueueUrl, ReceiptHandle: result.Messages[0].ReceiptHandle}); err != nil {
+						log.Println("Delete Error", err)
+						return
+					}
+				}
 			}
 		}
 	}
