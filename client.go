@@ -65,17 +65,17 @@ func (s *Socket) Read() {
 		switch parts[0] {
 		case "GET":
 			found := false
-			for _, folder := range ParameterQueue {
-				for i := 0; i < len(folder); i++ {
-					if !folder[i].Complete && folder[i].Worker == "" {
-						data, err := json.Marshal(&folder[i])
+			for _, pFolder := range ParameterQueue {
+				for i := 0; i < len(pFolder); i++ {
+					if !pFolder[i].Complete && pFolder[i].Worker == "" {
+						data, err := json.Marshal(&pFolder[i])
 						if err != nil {
 							log.Fatalln(err)
 						}
 
 						found = true
 						s.Send <- "DATA:" + string(data)
-						s.CurrentJob = &folder[i]
+						s.CurrentJob = &pFolder[i]
 						s.CurrentJob.Start = time.Now()
 						s.CurrentJob.Worker = s.WorkerID
 						break
