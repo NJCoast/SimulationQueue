@@ -52,6 +52,7 @@ type Job struct {
 
 var ParameterQueue map[string][]Job
 var name, folder string
+var folders []string
 var sess *session.Session
 
 var (
@@ -117,6 +118,8 @@ func main() {
 		log.Fatalln("Queue name required")
 	}
 
+	folders = strings.Split(folder, ":")
+
 	ParameterQueue = make(map[string][]Job)
 
 	sess, _ = session.NewSession(&aws.Config{
@@ -136,13 +139,13 @@ func main() {
 	)
 	http.Handle("/single", singleChain)
 
-	statusChain := promhttp.InstrumentHandlerInFlight(inFlightGauge,
+	statusChain := NoCache(promhttp.InstrumentHandlerInFlight(inFlightGauge,
 		promhttp.InstrumentHandlerDuration(duration.MustCurryWith(prometheus.Labels{"handler": "status"}),
 			promhttp.InstrumentHandlerCounter(counter,
 				promhttp.InstrumentHandlerResponseSize(responseSize, http.HandlerFunc(statusHandler)),
 			),
 		),
-	)
+	))
 	http.Handle("/status", statusChain)
 
 	http.Handle("/metrics", promhttp.Handler())
@@ -178,42 +181,46 @@ func S3MessageQueue(qName string, pQueue *map[string][]Job) {
 				log.Println("error:", err)
 			}
 
+			log.Println(data)
+
 			record := data.Data[0]
 			if record.Source == "aws:s3" && record.Event == "ObjectCreated:Put" {
 				log.Printf("Received %d messages.\n", len(result.Messages))
 				log.Println(result.Messages)
 
 				object := record.Data.Object
-				if object.Size > 0 && strings.HasPrefix(object.Name, folder) {
-					if strings.Contains(object.Name, "input_params.json") {
-						folder := filepath.Dir(object.Name)
+				if object.Size > 0 {
+					for _, folder := range folders {
+						if strings.HasPrefix(object.Name, folder) {
+							if strings.Contains(object.Name, "input_params.json") {
+								jFolder := filepath.Dir(object.Name)
 
-						// Create Job Queue
-						var jobs []Job
-						jobs = append(jobs, Job{ID: uuid.New().String(), Folder: folder, Complete: false, SLR: -1, Tide: -1, Analysis: -1})
-						jobsCreated.Inc()
-						(*pQueue)[folder] = jobs
-					}
+								// Create Job Queue
+								var jobs []Job
+								jobs = append(jobs, Job{ID: uuid.New().String(), Folder: jFolder, Complete: false, SLR: -1, Tide: -1, Analysis: -1})
+								jobsCreated.Inc()
+								(*pQueue)[jFolder] = jobs
+							}
 
-					if strings.Contains(object.Name, "input.geojson") {
-						folder := filepath.Dir(object.Name)
+							if strings.Contains(object.Name, "input.geojson") {
+								jFolder := filepath.Dir(object.Name)
 
-						// Create Job Queue
-						var jobs []Job
-						for slr := 0.0; slr <= 1.5; slr += 0.5 {
-							for tide := 0; tide < 3; tide++ {
-								for analysis := 0; analysis < 3; analysis++ {
-									jobs = append(jobs, Job{ID: uuid.New().String(), Folder: folder, Complete: false, SLR: slr, Tide: tide, Analysis: analysis})
-									jobsCreated.Inc()
+								// Create Job Queue
+								var jobs []Job
+								for tide := 0; tide < 3; tide++ {
+									for analysis := 0; analysis < 3; analysis++ {
+										jobs = append(jobs, Job{ID: uuid.New().String(), Folder: jFolder, Complete: false, SLR: 1.0, Tide: tide, Analysis: analysis})
+										jobsCreated.Inc()
+									}
 								}
+								(*pQueue)[jFolder] = jobs
+							}
+
+							if _, err := svc.DeleteMessage(&sqs.DeleteMessageInput{QueueUrl: resultURL.QueueUrl, ReceiptHandle: result.Messages[0].ReceiptHandle}); err != nil {
+								log.Println("Delete Error", err)
+								return
 							}
 						}
-						(*pQueue)[folder] = jobs
-					}
-
-					if _, err := svc.DeleteMessage(&sqs.DeleteMessageInput{QueueUrl: resultURL.QueueUrl, ReceiptHandle: result.Messages[0].ReceiptHandle}); err != nil {
-						log.Println("Delete Error", err)
-						return
 					}
 				}
 			}
