@@ -1,4 +1,4 @@
-FROM golang:1.9.4
+FROM golang:1.10
 WORKDIR /go/src/github.com/NJCoast/SimulationQueue/
 RUN go get k8s.io/client-go/...
 RUN go get github.com/google/uuid
