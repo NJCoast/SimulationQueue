@@ -52,7 +52,6 @@ type Job struct {
 
 var ParameterQueue map[string][]Job
 var name, folder string
-var folders []string
 var sess *session.Session
 
 var (
@@ -117,8 +116,6 @@ func main() {
 		flag.PrintDefaults()
 		log.Fatalln("Queue name required")
 	}
-
-	folders = strings.Split(folder, ":")
 
 	ParameterQueue = make(map[string][]Job)
 
@@ -190,36 +187,34 @@ func S3MessageQueue(qName string, pQueue *map[string][]Job) {
 
 				object := record.Data.Object
 				if object.Size > 0 {
-					for _, folder := range folders {
-						if strings.HasPrefix(object.Name, folder) {
-							if strings.Contains(object.Name, "input_params.json") {
-								jFolder := filepath.Dir(object.Name)
+					if strings.HasPrefix(object.Name, folder) {
+						if strings.Contains(object.Name, "input_params.json") {
+							jFolder := filepath.Dir(object.Name)
 
-								// Create Job Queue
-								var jobs []Job
-								jobs = append(jobs, Job{ID: uuid.New().String(), Folder: jFolder, Complete: false, SLR: -1, Tide: -1, Analysis: -1})
-								jobsCreated.Inc()
-								(*pQueue)[jFolder] = jobs
-							}
+							// Create Job Queue
+							var jobs []Job
+							jobs = append(jobs, Job{ID: uuid.New().String(), Folder: jFolder, Complete: false, SLR: -1, Tide: -1, Analysis: -1})
+							jobsCreated.Inc()
+							(*pQueue)[jFolder] = jobs
+						}
 
-							if strings.Contains(object.Name, "input.geojson") {
-								jFolder := filepath.Dir(object.Name)
+						if strings.Contains(object.Name, "input.geojson") {
+							jFolder := filepath.Dir(object.Name)
 
-								// Create Job Queue
-								var jobs []Job
-								for tide := 0; tide < 3; tide++ {
-									for analysis := 0; analysis < 3; analysis++ {
-										jobs = append(jobs, Job{ID: uuid.New().String(), Folder: jFolder, Complete: false, SLR: 1.0, Tide: tide, Analysis: analysis})
-										jobsCreated.Inc()
-									}
+							// Create Job Queue
+							var jobs []Job
+							for tide := 0; tide < 3; tide++ {
+								for analysis := 0; analysis < 3; analysis++ {
+									jobs = append(jobs, Job{ID: uuid.New().String(), Folder: jFolder, Complete: false, SLR: 1.0, Tide: tide, Analysis: analysis})
+									jobsCreated.Inc()
 								}
-								(*pQueue)[jFolder] = jobs
 							}
+							(*pQueue)[jFolder] = jobs
+						}
 
-							if _, err := svc.DeleteMessage(&sqs.DeleteMessageInput{QueueUrl: resultURL.QueueUrl, ReceiptHandle: result.Messages[0].ReceiptHandle}); err != nil {
-								log.Println("Delete Error", err)
-								return
-							}
+						if _, err := svc.DeleteMessage(&sqs.DeleteMessageInput{QueueUrl: resultURL.QueueUrl, ReceiptHandle: result.Messages[0].ReceiptHandle}); err != nil {
+							log.Println("Delete Error", err)
+							return
 						}
 					}
 				}

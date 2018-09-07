@@ -31,7 +31,7 @@ func singleHandler(w http.ResponseWriter, r *http.Request) {
 		result, err := s3manager.NewUploader(sess).Upload(&s3manager.UploadInput{
 			ACL:         aws.String("public-read"),
 			Bucket:      aws.String("simulation.njcoast.us"),
-			Key:         aws.String(fmt.Sprintf("%s/%s/%s/input_params.json", folders[0], username, id)),
+			Key:         aws.String(fmt.Sprintf("%s/simulation/%s/%s/input_params.json", folder, username, id)),
 			ContentType: aws.String("application/json"),
 			Body:        r.Body,
 		})
@@ -58,7 +58,7 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		rFolder := fmt.Sprintf("%s/%s/%s", folders[0], username, id)
+		rFolder := fmt.Sprintf("%s/simulation/%s/%s", folder, username, id)
 
 		complete := false
 		if _, ok := ParameterQueue[rFolder]; ok {
