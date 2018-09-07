@@ -30,6 +30,12 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 	c.Read()
 
 	c.CurrentJob.Worker = ""
+	c.CurrentJob.Retried += 1
+	if c.CurrentJob.Retried >= 3 {
+		jobsFailed.Inc()
+		c.CurrentJob.Failed = true
+		log.Println("Job failed:", *c.CurrentJob)
+	}
 	log.Println("Deleted", c.WorkerID)
 }
 
@@ -67,7 +73,7 @@ func (s *Socket) Read() {
 			found := false
 			for _, pFolder := range ParameterQueue {
 				for i := 0; i < len(pFolder); i++ {
-					if !pFolder[i].Complete && pFolder[i].Worker == "" {
+					if !pFolder[i].Failed && !pFolder[i].Complete && pFolder[i].Worker == "" && s.CurrentJob == nil {
 						data, err := json.Marshal(&pFolder[i])
 						if err != nil {
 							log.Fatalln(err)

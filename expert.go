@@ -81,3 +81,51 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
+func queueHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST,GET,OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+
+	if r.Method == "GET" {
+		var jobs []Job
+		for _, pFolder := range ParameterQueue {
+			for i := 0; i < len(pFolder); i++ {
+				if !pFolder[i].Failed && !pFolder[i].Complete {
+					jobs = append(jobs, pFolder[i])
+				}
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(&jobs); err != nil {
+			log.Println(err)
+			return
+		}
+	}
+}
+
+func failedHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST,GET,OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+
+	if r.Method == "GET" {
+		var jobs []Job
+		for _, pFolder := range ParameterQueue {
+			for i := 0; i < len(pFolder); i++ {
+				if pFolder[i].Failed {
+					jobs = append(jobs, pFolder[i])
+				}
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(&jobs); err != nil {
+			log.Println(err)
+			return
+		}
+	}
+}

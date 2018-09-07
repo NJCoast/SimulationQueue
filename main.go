@@ -44,6 +44,8 @@ type Job struct {
 	Folder   string `json:"folder"`
 	Worker   string
 	Complete bool
+	Failed bool
+	Retried int
 	SLR      float64 `json:"slr"`
 	Tide     int     `json:"tide"`
 	Analysis int     `json:"analysis"`
@@ -65,6 +67,12 @@ var (
 		prometheus.CounterOpts{
 			Name: "queue_jobs_complete_total",
 			Help: "Number of jobs completed.",
+		},
+	)
+	jobsFailed = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "queue_jobs_failed_total",
+			Help: "Number of jobs failed.",
 		},
 	)
 	jobsDuration = prometheus.NewSummary(prometheus.SummaryOpts{
@@ -103,7 +111,7 @@ var (
 )
 
 func init() {
-	prometheus.MustRegister(jobsCreated, jobsCompleted, jobsDuration)
+	prometheus.MustRegister(jobsCreated, jobsCompleted, jobsFailed, jobsDuration)
 	prometheus.MustRegister(inFlightGauge, counter, duration, responseSize)
 }
 
@@ -145,6 +153,24 @@ func main() {
 	))
 	http.Handle("/status", statusChain)
 
+	queueChain := NoCache(promhttp.InstrumentHandlerInFlight(inFlightGauge,
+		promhttp.InstrumentHandlerDuration(duration.MustCurryWith(prometheus.Labels{"handler": "failed"}),
+			promhttp.InstrumentHandlerCounter(counter,
+				promhttp.InstrumentHandlerResponseSize(responseSize, http.HandlerFunc(queueHandler)),
+			),
+		),
+	))
+	http.Handle("/scheduled", queueChain)
+
+	failedChain := NoCache(promhttp.InstrumentHandlerInFlight(inFlightGauge,
+		promhttp.InstrumentHandlerDuration(duration.MustCurryWith(prometheus.Labels{"handler": "failed"}),
+			promhttp.InstrumentHandlerCounter(counter,
+				promhttp.InstrumentHandlerResponseSize(responseSize, http.HandlerFunc(failedHandler)),
+			),
+		),
+	))
+	http.Handle("/failed", failedChain)
+
 	http.Handle("/metrics", promhttp.Handler())
 	log.Fatalln(http.ListenAndServe(fmt.Sprintf(":%d", 9090), nil))
 }
@@ -178,16 +204,13 @@ func S3MessageQueue(qName string, pQueue *map[string][]Job) {
 				log.Println("error:", err)
 			}
 
-			log.Println(data)
-
-			record := data.Data[0]
-			if record.Source == "aws:s3" && record.Event == "ObjectCreated:Put" {
+			if data.Data[0].Source == "aws:s3" {
 				log.Printf("Received %d messages.\n", len(result.Messages))
 				log.Println(result.Messages)
 
-				object := record.Data.Object
-				if object.Size > 0 {
-					if strings.HasPrefix(object.Name, folder) {
+				object := data.Data[0].Data.Object
+				if strings.HasPrefix(object.Name, folder) {
+					if object.Size > 0 && data.Data[0].Event == "ObjectCreated:Put" {
 						if strings.Contains(object.Name, "input_params.json") {
 							jFolder := filepath.Dir(object.Name)
 
@@ -211,11 +234,11 @@ func S3MessageQueue(qName string, pQueue *map[string][]Job) {
 							}
 							(*pQueue)[jFolder] = jobs
 						}
-
-						if _, err := svc.DeleteMessage(&sqs.DeleteMessageInput{QueueUrl: resultURL.QueueUrl, ReceiptHandle: result.Messages[0].ReceiptHandle}); err != nil {
-							log.Println("Delete Error", err)
-							return
-						}
+					}
+					
+					if _, err := svc.DeleteMessage(&sqs.DeleteMessageInput{QueueUrl: resultURL.QueueUrl, ReceiptHandle: result.Messages[0].ReceiptHandle}); err != nil {
+						log.Println("Delete Error", err)
+						return
 					}
 				}
 			}
