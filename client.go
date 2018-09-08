@@ -98,6 +98,15 @@ func (s *Socket) Read() {
 			jobsDuration.Observe(time.Now().Sub(s.CurrentJob.Start).Seconds())
 			s.CurrentJob.Complete = true
 			s.CurrentJob = nil
+		case "FAILED":
+			s.CurrentJob.Worker = ""
+			s.CurrentJob.Retried += 1
+			if s.CurrentJob.Retried >= 3 {
+				jobsFailed.Inc()
+				s.CurrentJob.Failed = true
+				log.Println("Job failed:", *s.CurrentJob)
+			}
+			s.CurrentJob = nil
 		}
 	}
 }
