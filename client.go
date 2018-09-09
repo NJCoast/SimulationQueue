@@ -71,9 +71,30 @@ func (s *Socket) Read() {
 		switch parts[0] {
 		case "GET":
 			found := false
+
+			// Try to find any user simulations first
 			for _, pFolder := range ParameterQueue {
 				for i := 0; i < len(pFolder); i++ {
-					if !pFolder[i].Failed && !pFolder[i].Complete && pFolder[i].Worker == "" && s.CurrentJob == nil {
+					if !pFolder[i].Failed && !pFolder[i].Complete && pFolder[i].Worker == "" && pFolder[i].SLR == -1 && s.CurrentJob == nil {
+						data, err := json.Marshal(&pFolder[i])
+						if err != nil {
+							log.Fatalln(err)
+						}
+
+						found = true
+						s.Send <- "DATA:" + string(data)
+						s.CurrentJob = &pFolder[i]
+						s.CurrentJob.Start = time.Now()
+						s.CurrentJob.Worker = s.WorkerID
+						break
+					}
+				}
+			}
+			
+			// Search remaining simulations
+			for _, pFolder := range ParameterQueue {
+				for i := 0; i < len(pFolder); i++ {
+					if !pFolder[i].Failed && !pFolder[i].Complete && pFolder[i].Worker == "" && pFolder[i].SLR != -1 && s.CurrentJob == nil {
 						data, err := json.Marshal(&pFolder[i])
 						if err != nil {
 							log.Fatalln(err)
