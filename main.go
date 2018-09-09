@@ -190,7 +190,7 @@ func S3MessageQueue(qName string, pQueue *map[string][]Job) {
 		result, err := svc.ReceiveMessage(&sqs.ReceiveMessageInput{
 			QueueUrl:              resultURL.QueueUrl,
 			AttributeNames:        aws.StringSlice([]string{"SentTimestamp"}),
-			MaxNumberOfMessages:   aws.Int64(1),
+			MaxNumberOfMessages:   aws.Int64(10),
 			MessageAttributeNames: aws.StringSlice([]string{"ALL"}),
 			WaitTimeSeconds:       aws.Int64(20),
 		})
@@ -205,14 +205,16 @@ func S3MessageQueue(qName string, pQueue *map[string][]Job) {
 			}
 
 			if data.Data[0].Source == "aws:s3" {
-				log.Printf("Received %d messages.\n", len(result.Messages))
-				log.Println(result.Messages)
-
 				object := data.Data[0].Data.Object
 				if strings.HasPrefix(object.Name, folder) {
 					if object.Size > 0 && data.Data[0].Event == "ObjectCreated:Put" {
+						log.Printf("Received %d messages.\n", len(result.Messages))
+						log.Println(result.Messages)
+						
 						if strings.Contains(object.Name, "input_params.json") {
 							jFolder := filepath.Dir(object.Name)
+
+							log.Println("Creating job for", object.Name)
 
 							// Create Job Queue
 							var jobs []Job
@@ -223,6 +225,8 @@ func S3MessageQueue(qName string, pQueue *map[string][]Job) {
 
 						if strings.Contains(object.Name, "input.geojson") {
 							jFolder := filepath.Dir(object.Name)
+
+							log.Println("Creating jobs for", object.Name)
 
 							// Create Job Queue
 							var jobs []Job
@@ -236,7 +240,7 @@ func S3MessageQueue(qName string, pQueue *map[string][]Job) {
 						}
 					}
 					
-					if _, err := svc.DeleteMessage(&sqs.DeleteMessageInput{QueueUrl: resultURL.QueueUrl, ReceiptHandle: result.Messages[0].ReceiptHandle}); err != nil {
+					if _, err := svc.DeleteMessage(&sqs.DeleteMessageInput{QueueUrl: resultURL.QueueUrl, ReceiptHandle: message.ReceiptHandle}); err != nil {
 						log.Println("Delete Error", err)
 						return
 					}
