@@ -10,6 +10,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+var JobWorkers int = 0
+
 func clientHandler(w http.ResponseWriter, r *http.Request) {
 	var upgrader websocket.Upgrader
 
@@ -25,18 +27,20 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 
 	c := &Socket{Connection: ws, WorkerID: r.FormValue("id"), Send: make(chan string, 10)}
 	log.Println("Added", c.WorkerID)
+	JobWorkers++
 
 	go c.Write()
 	c.Read()
 
 	c.CurrentJob.Worker = ""
-	c.CurrentJob.Retried += 1
+	c.CurrentJob.Retried++
 	if c.CurrentJob.Retried >= 3 {
 		jobsFailed.Inc()
 		c.CurrentJob.Failed = true
 		log.Println("Job failed:", *c.CurrentJob)
 	}
 	log.Println("Deleted", c.WorkerID)
+	JobWorkers--
 }
 
 type Socket struct {
@@ -73,40 +77,36 @@ func (s *Socket) Read() {
 			found := false
 
 			// Try to find any user simulations first
-			for _, pFolder := range ParameterQueue {
-				for i := 0; i < len(pFolder); i++ {
-					if !pFolder[i].Failed && !pFolder[i].Complete && pFolder[i].Worker == "" && pFolder[i].SLR == -1 && s.CurrentJob == nil {
-						data, err := json.Marshal(&pFolder[i])
-						if err != nil {
-							log.Fatalln(err)
-						}
-
-						found = true
-						s.Send <- "DATA:" + string(data)
-						s.CurrentJob = &pFolder[i]
-						s.CurrentJob.Start = time.Now()
-						s.CurrentJob.Worker = s.WorkerID
-						break
+			for i := 0; i < len(ParameterQueue); i++ {
+				if !ParameterQueue[i].Failed && !ParameterQueue[i].Complete && ParameterQueue[i].Worker == "" && ParameterQueue[i].SLR == -1 && s.CurrentJob == nil {
+					data, err := json.Marshal(&ParameterQueue[i])
+					if err != nil {
+						log.Fatalln(err)
 					}
+
+					found = true
+					s.Send <- "DATA:" + string(data)
+					s.CurrentJob = &ParameterQueue[i]
+					s.CurrentJob.Start = time.Now()
+					s.CurrentJob.Worker = s.WorkerID
+					break
 				}
 			}
-			
-			// Search remaining simulations
-			for _, pFolder := range ParameterQueue {
-				for i := 0; i < len(pFolder); i++ {
-					if !pFolder[i].Failed && !pFolder[i].Complete && pFolder[i].Worker == "" && pFolder[i].SLR != -1 && s.CurrentJob == nil {
-						data, err := json.Marshal(&pFolder[i])
-						if err != nil {
-							log.Fatalln(err)
-						}
 
-						found = true
-						s.Send <- "DATA:" + string(data)
-						s.CurrentJob = &pFolder[i]
-						s.CurrentJob.Start = time.Now()
-						s.CurrentJob.Worker = s.WorkerID
-						break
+			// Search remaining simulations
+			for i := 0; i < len(ParameterQueue); i++ {
+				if !ParameterQueue[i].Failed && !ParameterQueue[i].Complete && ParameterQueue[i].Worker == "" && ParameterQueue[i].SLR != -1 && s.CurrentJob == nil {
+					data, err := json.Marshal(&ParameterQueue[i])
+					if err != nil {
+						log.Fatalln(err)
 					}
+
+					found = true
+					s.Send <- "DATA:" + string(data)
+					s.CurrentJob = &ParameterQueue[i]
+					s.CurrentJob.Start = time.Now()
+					s.CurrentJob.Worker = s.WorkerID
+					break
 				}
 			}
 
@@ -121,7 +121,7 @@ func (s *Socket) Read() {
 			s.CurrentJob = nil
 		case "FAILED":
 			s.CurrentJob.Worker = ""
-			s.CurrentJob.Retried += 1
+			s.CurrentJob.Retried++
 			if s.CurrentJob.Retried >= 3 {
 				jobsFailed.Inc()
 				s.CurrentJob.Failed = true

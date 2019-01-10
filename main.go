@@ -44,15 +44,15 @@ type Job struct {
 	Folder   string `json:"folder"`
 	Worker   string
 	Complete bool
-	Failed bool
-	Retried int
+	Failed   bool
+	Retried  int
 	SLR      float64 `json:"slr"`
 	Tide     int     `json:"tide"`
 	Analysis int     `json:"analysis"`
 	Start    time.Time
 }
 
-var ParameterQueue map[string][]Job
+var ParameterQueue []Job
 var name, folder string
 var sess *session.Session
 
@@ -125,8 +125,6 @@ func main() {
 		log.Fatalln("Queue name required")
 	}
 
-	ParameterQueue = make(map[string][]Job)
-
 	sess, _ = session.NewSession(&aws.Config{
 		Region: aws.String("us-east-1")},
 	)
@@ -175,7 +173,7 @@ func main() {
 	log.Fatalln(http.ListenAndServe(fmt.Sprintf(":%d", 9090), nil))
 }
 
-func S3MessageQueue(qName string, pQueue *map[string][]Job) {
+func S3MessageQueue(qName string, pQueue *[]Job) {
 	svc := sqs.New(sess)
 
 	resultURL, err := svc.GetQueueUrl(&sqs.GetQueueUrlInput{QueueName: aws.String(qName)})
@@ -210,17 +208,15 @@ func S3MessageQueue(qName string, pQueue *map[string][]Job) {
 					if object.Size > 0 && data.Data[0].Event == "ObjectCreated:Put" {
 						log.Printf("Received %d messages.\n", len(result.Messages))
 						log.Println(result.Messages)
-						
+
 						if strings.Contains(object.Name, "input_params.json") {
 							jFolder := filepath.Dir(object.Name)
 
 							log.Println("Creating job for", object.Name)
 
 							// Create Job Queue
-							var jobs []Job
-							jobs = append(jobs, Job{ID: uuid.New().String(), Folder: jFolder, Complete: false, SLR: -1, Tide: -1, Analysis: -1})
+							(*pQueue) = append((*pQueue), Job{ID: uuid.New().String(), Folder: jFolder, Complete: false, SLR: -1, Tide: -1, Analysis: -1})
 							jobsCreated.Inc()
-							(*pQueue)[jFolder] = jobs
 						}
 
 						if strings.Contains(object.Name, "input.geojson") {
@@ -229,17 +225,15 @@ func S3MessageQueue(qName string, pQueue *map[string][]Job) {
 							log.Println("Creating jobs for", object.Name)
 
 							// Create Job Queue
-							var jobs []Job
 							for tide := 0; tide < 3; tide++ {
 								for analysis := 0; analysis < 3; analysis++ {
-									jobs = append(jobs, Job{ID: uuid.New().String(), Folder: jFolder, Complete: false, SLR: 1.0, Tide: tide, Analysis: analysis})
+									(*pQueue) = append((*pQueue), Job{ID: uuid.New().String(), Folder: jFolder, Complete: false, SLR: 1.0, Tide: tide, Analysis: analysis})
 									jobsCreated.Inc()
 								}
 							}
-							(*pQueue)[jFolder] = jobs
 						}
 					}
-					
+
 					if _, err := svc.DeleteMessage(&sqs.DeleteMessageInput{QueueUrl: resultURL.QueueUrl, ReceiptHandle: message.ReceiptHandle}); err != nil {
 						log.Println("Delete Error", err)
 						return

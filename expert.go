@@ -58,19 +58,26 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		rFolder := fmt.Sprintf("%s/simulation/%s/%s", folder, username, id)
+		complete, position := false, 1
+		for i := 0; i < len(ParameterQueue); i++ {
+			if ParameterQueue[i].ID == id {
+				complete = ParameterQueue[i].Complete
+				break
+			}
 
-		complete := false
-		if _, ok := ParameterQueue[rFolder]; ok {
-			if len(ParameterQueue[rFolder]) > 0 {
-				complete = ParameterQueue[rFolder][0].Complete
+			if !ParameterQueue[i].Failed && !ParameterQueue[i].Complete {
+				position++
 			}
 		}
 
 		result := struct {
 			Complete bool `json:"complete"`
+			Workers  int  `json:"workers"`
+			Position int  `json:"position"`
 		}{
 			complete,
+			JobWorkers,
+			position,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -89,11 +96,9 @@ func queueHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "GET" {
 		var jobs []Job
-		for _, pFolder := range ParameterQueue {
-			for i := 0; i < len(pFolder); i++ {
-				if !pFolder[i].Failed && !pFolder[i].Complete {
-					jobs = append(jobs, pFolder[i])
-				}
+		for i := 0; i < len(ParameterQueue); i++ {
+			if !ParameterQueue[i].Failed && !ParameterQueue[i].Complete {
+				jobs = append(jobs, ParameterQueue[i])
 			}
 		}
 
@@ -113,11 +118,9 @@ func failedHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "GET" {
 		var jobs []Job
-		for _, pFolder := range ParameterQueue {
-			for i := 0; i < len(pFolder); i++ {
-				if pFolder[i].Failed {
-					jobs = append(jobs, pFolder[i])
-				}
+		for i := 0; i < len(ParameterQueue); i++ {
+			if ParameterQueue[i].Failed {
+				jobs = append(jobs, ParameterQueue[i])
 			}
 		}
 
