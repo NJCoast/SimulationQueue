@@ -40,7 +40,6 @@ type S3Record struct {
 type S3ObjectRecord struct {
 	Name string `json:"key"`
 	Size int    `json:"size"`
-	eTag string `json:"eTag"`
 }
 
 // The Job structure holds the parameters of a specific job
