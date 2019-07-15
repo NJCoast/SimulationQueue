@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
+// singleHandler is a HTTP function to allow a user to post a simulation to 
+// the system.
 func singleHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST,GET,OPTIONS")
@@ -40,6 +43,8 @@ func singleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// statusHandler is a HTTP function that checks if a worker has completed
+// a specific job.
 func statusHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST,GET,OPTIONS")
@@ -60,7 +65,7 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 
 		complete, position := false, 1
 		for i := 0; i < len(ParameterQueue); i++ {
-			if ParameterQueue[i].ID == id {
+			if strings.HasSuffix(ParameterQueue[i].Folder, id) {
 				complete = ParameterQueue[i].Complete
 				break
 			}
@@ -89,6 +94,8 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// queueHandler is a HTTP function that provides a list of all jobs currently
+// waiting to be executed by a worker.
 func queueHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST,GET,OPTIONS")
@@ -111,6 +118,8 @@ func queueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// queueHandler is a HTTP function that provides a list of all jobs which
+// failed to execute on a worker.
 func failedHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST,GET,OPTIONS")

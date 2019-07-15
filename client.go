@@ -12,6 +12,8 @@ import (
 
 var JobWorkers int = 0
 
+// clientHandler is a web link that workers can connect to that upgrades the
+// connection to a websocket and adds them to the workers list.
 func clientHandler(w http.ResponseWriter, r *http.Request) {
 	var upgrader websocket.Upgrader
 
@@ -43,6 +45,8 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 	JobWorkers--
 }
 
+// The Socket structure contains information relevant to each worker connected
+// through a websocket
 type Socket struct {
 	Connection *websocket.Conn
 	WorkerID   string
@@ -50,6 +54,8 @@ type Socket struct {
 	CurrentJob *Job
 }
 
+// The Read function handles the websocket's read loop. It looks for new job
+// requests, completed jobs and failed jobs.
 func (s *Socket) Read() {
 	defer func() {
 		s.Connection.Close()
@@ -132,6 +138,9 @@ func (s *Socket) Read() {
 	}
 }
 
+// The Write function handles the websocket's write loop. This includes the
+// ping to keep the socket alive as well as sending anything that is sent 
+// by the channel.
 func (s *Socket) Write() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
