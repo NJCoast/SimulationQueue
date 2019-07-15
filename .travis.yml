@@ -1,29 +1,19 @@
 sudo: required
+language: minimal
 services:
 - docker
-addons:
-  apt:
-    packages:
-    - openconnect
-before_install:
+script:
 - pip install awscli --upgrade --user
 - eval $(aws ecr get-login --region us-east-1 --no-include-email)
-- curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
-- chmod +x ./kubectl
-- mv ./kubectl $HOME/kubectl
-- openssl aes-256-cbc -K $encrypted_bc730ab59e4c_key -iv $encrypted_bc730ab59e4c_iv -in kube.config.enc -out kube.config -d
-- mkdir -p $HOME/.kube/ && mv kube.config $HOME/.kube/config
-script:
 - docker build -t 234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:$TRAVIS_BRANCH-$TRAVIS_COMMIT .
-- docker tag 234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:$TRAVIS_BRANCH-$TRAVIS_COMMIT 234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:$TRAVIS_BRANCH
-- docker push 234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:$TRAVIS_BRANCH-$TRAVIS_COMMIT
-- docker push 234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:$TRAVIS_BRANCH
-after_success:
-- echo $VPNPASS | sudo openconnect vpnaccess.nd.edu -b --user=$VPNUSER --passwd-on-stdin
-- if [ "$TRAVIS_BRANCH" = "master" ]; then $HOME/kubectl -n staging set image deployment/staging-cyberspatial-queue-master cyberspatial=234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:$TRAVIS_BRANCH; fi
+deploy:
+  provider: script
+  script: >-
+    docker tag 234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:$TRAVIS_BRANCH-$TRAVIS_COMMIT 234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:$TRAVIS_BRANCH &&
+    docker push 234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:$TRAVIS_BRANCH-$TRAVIS_COMMIT &&
+    docker push 234514569215.dkr.ecr.us-east-1.amazonaws.com/simulation-queue:$TRAVIS_BRANCH
+  if: tag IS present
 env:
   global:
-  - secure: UCSTsHurnrklWLVGnPZof/6ykYAfH7H6KMue3AKFpWq5u02lio1gTqic/ADm1pqE6Hmu1TXdVxnSOY1OaPkSn4S/mjmQfBQnpeBz6d85aehqc0USPTsUDiTXzApCcCmPJ1YMlcA4MV8m9jN7SwpOrHLN/ksHLs4inbermgzAPbTOb7Y7KI0d/B6vevcy0PuC7dtkN8Ixoc1v641zV3LzYg/bFrGrTPYDnsGqABjSoLyQ+1yynQ7cLfV8boGw2VqSbN/Kkn8KrDW0N4IhtX627d7GAjh8kItipBw2ZB7HBefyytvbCfQQ7diYSTF2lNaLVbkrxMk6tYcNc13Yfo8FJHbzOiDTnIJXQYWr6MP1iPrPzTKTa5tyIJv4mO0M7SSLtGXSYT8mj+eR39rn2ZYDle/ZmQpuKnficSbnaU3CqorBjpU5Qm60gqr3H01eQdg0n4/pyPhWvtciXP81vjx9jiCzgrhrQXnqVlfn6HZtG/6CUEkxKQz0GK4Q98IbhgNwG1/JTZ4gyH5OsJyevS/WvpseN7Om9Wp4IrdHPINIP6AG1Q69VUn7UOVn9E4aA6c3M5KESnJRXF4+ATQjDWGgt79X4BovlcfrfX0EaMXHWejr/tpAMww57Naxs0YIX8/Eo8WgDY1eQFqBdZ7mg3/kCrDkA8L9hTrEmHKpexsjSXk=
-  - secure: Lx1yjS1X4TBU3bT9IQkmJ91vFmE8N1sAUAttQquDpm7FSv2g5MfwmDrerhla/Vz2RPyZTliLAkQcaK+TdBDcEuKwi/t2zbWhcUK7JakyBzLCXQQOw2j4ID4yVZqtN9Qiks0Gz7dKFduUZqeyMXwqRe5pTnva+YWPFQ0q548uCoDxXzsziC3BJlEyVfd99U5Ubj+YcaoRYYUJqrqCEpqCoPzZsJaAaZtSSJS7BtpZhHH+Cu6TTAdGC6pxLvwF+AtnLZPSRLZhyLI6+MjqVVFhCNIs73QyYJdiq3nCGR1pCQaFZU+TDsnPug9bBrgftzqqnjNH7fSz10cS382dGR16RAwRfXqv6GJa2kNdiEZLGLhwEZelFrbCmwhG85Z7VaZE6UF6vw2vlgORtIGwqmlO8XyNB6PHXlJ9Rc/gr90imE3MXi8fjgXwy3f6a3OnLFy08nWWkWKAqt5EYE/5SI4b8rOhLgqBlWZvdPAdGi1WKjgijiRVB24h2AxOyhEvvr9rnHliUxLBEtP+74L3NMWZ4x1e8VQpb608KJkJU7hlHdr3LwYDD0gd7e15FPn2od2arQB3Z11P8DHCmiRapGSRe/9x1l7dNAhjPQC3s44VInjYUAfdthorNtCA2TLgLxUW85JLjT0CuDl+XA1I8Knrcd/KxVJWCp3HmaBnqYkt+tk=
-  - secure: fAgrtS6lQ/NE66d+8NK5ZADb9TLd7bNCf4k6H2Ffv2RM2wNeVgF/a+udwrvaaEPnkJEFVi3r6+ydaW0NOb/6HvxxiVfNA/5/lFdmq9J8Wf0XqnQQzqFkqq1ZvSZcIc5rHFxK1rQVy4n9n0SF9NyR1EO/L9XjfetiqDEGbK1j91BFIKaUP15L3u7mvT0WgzC4FshpdV3Z5YeQYzfXOb64/GWhM9KEfQUvHOsSfcRomHGpYq4Q7jhZI+yeg0pEFpDsEjeAsjf5iT1zuEpzS37/9aI4RduDfhDiYwmG6kvTRkCaJWYQAhOHu1Kd9lZS63wIUP4cIe7yVHLVQCgqrnh4/lBkGmDEYaLjytBdHSpXjfBl4+/tWPNZoELCa+ncRJ52PDxrx8Ix1mfLRxSlBzVJoRPUMSYD+8SAcAVq7KeqqFsgemUVCkAM66iZVErLcp4takD7cNC/mlFPNYXV9DC3ErvLofeyWoohxRh3V9T19QuT+gu1CbRd0C5Oy1aO2jt+NhoIxSqv26yowWM3O3uHPR3VqlB6TRqPo+hUJzrMfumhwy6IZLjoxJFfAG94eo7KzYmMWInonVIldCaHPgJhyZj+yUTq76/0XA6Uqk2n7ueIFf0YDd3Kz6OQR8uE69lEiuGaNVtY/4gF8hKqwYrj/VwgB0i8b2eHYgUarXzvE/U=
-  - secure: t00x/xX4irBp68c5B4eIoXfLTm3SdzdNx0MNslcqeXm3AIA+V0rRAAu63LISlk7ABvw7yJb9rHU+92KPR3Pft9bFXFehkMpLHyNOVOxcimyHUqEjg1bMjsg2FieqRYb3LUlNBHVkRGQ690TRTDbRkFC89Rz6atGRUSP9m9BfTsAM+jWcXmy6Jw6hWwdfjIp22rX7Og6ikVchcpEJn0TrvpRTzFdoozkxG0t071BT+hg0OEXE4eLbUHEfhFM15HD2VbdrTAR1BC9l0yKixL/mjLb35NbjC40gpwh847UGVZqLd3d4NgFbdLRIvOUEaIyHJJot8iz5I7UHYwLDBBuiQLam6nk5xpFL/J11t5t3KHqI/aRJTwOM1BIv5bheC0LxNTPXbdpMuY9OmBgGdUQuTzLkYENF8twLfXGYBvk6Ngw0zlkhzWDpBh1W+SDqgTTO2Rk9DXhl0YgY6RNS22djxxoyrkeZZRsfLekh9sPzDlXDs544knI2qcaub2POM5V92967DdGVsWBg9Z23/w4KVBOeJiHBXmhvEV7odh284U/oBNivl1/x7dZZMEdOu87DaoO4iOUd6d5eUkAbv4j4HehWUCijbjwFe3zchkRlnTePVjep4/4NQHpHAUPyZJ1aZ2kl1+Tznu7YLib96kVqOgTR6tNIR9lsCrXKv4OV9lU=
+  - secure: lhyI1d3uWXgrYKUsPgbt4qAg4Jk8mclWsV+u+NQjmSy/NK1cUlFCRAISMS3E4fj271R5hYLztUGos2T6sXZdBMWt2yNu7bYs2BdiA87qB2WeuHtBXuUGF+aS60oGYfFVR4VvppC7YwOUyHljc3MDexC1ULGegIFcpr7OvxT1XCPoBFY8yCkzyIxfFRtVE8omtx5ammXB149+yarPSc4pcS9zto9Z3Foa52EZjt2u/cX+Iii6UdizgJEMtkqp3q0McZzVHTpEGSFKrOHDOR4Q2pz0qPBFQ+fH0WQCmk2wxJnFNcPndHGAmsVSVs6p6/0OsDOj4DFBxCyWK0xX0XMModKCwb8KfnnNAub9vN+NrohzhIFJ8ca/JGX7q76BI5+sldxIS52HaiBPQF4QzbDHPzwTyPL8cFp3okjt1rqcFzB/bO4Mv6VtbDz8yT6FRUbHY0D/2m7AG3cQmBkiV25gIR3e2bC8U1+6o+HBsONpY7LaFlS92RGQLV7PMwxK1MvaliSqWw3iPOnPgSIiHSA+VrSki1bIwkud8wHJ7QNaB/O+l/Zhod1rM9TsO57OzFbjxJWVTGwYz3XklPzZ8iiqbsiPDvpzq1Jd1kseId5ALH7TemIer3pq8JWqiFKuw9k/u/TjDVf19+FihwWroheSuGW9jGCRXLZyLOJDn1tqpfc=
+  - secure: nG2kRGG0r/dvgYAjY8ojODLi1GXXMPAMOS/DK5LFWx3YWwWIGBNEVR6p1IvEZFVE9LOlAGpMtifeKkrjt1TMzXpn3dGWRoj6tb6Pf+dqjLzGGCMTOT5BEJXFjvzjJqWvFXbmQtDhSY+OZbwFn3mTraUgG5ynVEyCFW7dQCSaQmZcV4/8XA3jg4dPQ7RjDIj1wdcNhzNmVgicgbEMbGyXcKXMOtfxfKrhy1YmFXb3250wftjGhRaYiJHMRHZn0Av6iAAMStXcOzcoZlrfbT64+Cokty8lpJreyuJ6MOWIvETXEYztux6M4RhejnoX2V9I+teqJsmwk0VGKchab3f1mlSHr5nhU6nZHskBGZzjCpXpyUeHKGyaJpPbxbKxTexLYqHxCt7sX/j/LMNh5DsQRu+ra0g9gs+5Nom3FqOzEKJGXPN/6impu+5+IKQbU5Ma9kfjXfXQ4lj/zXQl4PF/oROEXCXeMBzBynFoQNGHK43rSpiBa0m9M3dDwEixmxeLvU2/HzAP5GXFLTtTK26RW0kIX3PgImlFRJuiYtJZnnJTiryjd4D2d8KcBLye4iwEmXG1vc28CsSC6cTJz8NpAKHK1NGgY9BFTHRRefXo7cJ6D1E9o4r/gDPLPiBhdWkXHclqt6HyQ2tvehT+saVYc8vbSpLWmIu6xjheFGQLBQc=
