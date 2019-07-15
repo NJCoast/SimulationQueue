@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
-// singleHandler is a HTTP function to allow a user to post a simulation to 
+// singleHandler is a HTTP function to allow a user to post a simulation to
 // the system.
 func singleHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")

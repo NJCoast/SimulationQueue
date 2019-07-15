@@ -140,7 +140,7 @@ func (s *Socket) Read() {
 }
 
 // The Write function handles the websocket's write loop. This includes the
-// ping to keep the socket alive as well as sending anything that is sent 
+// ping to keep the socket alive as well as sending anything that is sent
 // by the channel.
 func (s *Socket) Write() {
 	ticker := time.NewTicker(30 * time.Second)

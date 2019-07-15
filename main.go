@@ -182,10 +182,10 @@ func main() {
 	log.Fatalln(http.ListenAndServe(fmt.Sprintf(":%d", 9090), nil))
 }
 
-// S3MessageQueue connects to an AWS Simple Queue Service queue and watches 
-// for new simulation input files. If it sees a geojson file, it is from 
+// S3MessageQueue connects to an AWS Simple Queue Service queue and watches
+// for new simulation input files. If it sees a geojson file, it is from
 // an active or historic storm and all of the parameters should be simulated.
-// If it sees an input.json file, it knows that it is a single simulation and 
+// If it sees an input.json file, it knows that it is a single simulation and
 // it's defaults the modifiable parameters to a null value.
 func S3MessageQueue(qName string, pQueue *[]Job) {
 	svc := sqs.New(sess)
