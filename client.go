@@ -10,7 +10,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var JobWorkers int = 0
+// JobWorkers is a counter for the number of worker processes currently connected
+var JobWorkers int
 
 // clientHandler is a web link that workers can connect to that upgrades the
 // connection to a websocket and adds them to the workers list.
@@ -74,7 +75,7 @@ func (s *Socket) Read() {
 			log.Println(err)
 			break
 		}
-		log.Println("Recieved["+s.WorkerID+"]", string(message))
+		log.Println("Received["+s.WorkerID+"]", string(message))
 
 		parts := strings.Split(string(message), ":")
 

@@ -19,20 +19,24 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// Records holds the decoded value from the S3 SQS response
 type Records struct {
 	Data []Record `json:"Records"`
 }
 
+// Record holds the decoded value from the S3 SQS response
 type Record struct {
 	Source string   `json:"eventSource"`
 	Event  string   `json:"eventName"`
 	Data   S3Record `json:"s3"`
 }
 
+// S3ObjectRecord holds the decoded value from the S3 SQS response
 type S3Record struct {
 	Object S3ObjectRecord `json:"object"`
 }
 
+// S3ObjectRecord holds the decoded value from the S3 SQS response
 type S3ObjectRecord struct {
 	Name string `json:"key"`
 	Size int    `json:"size"`
@@ -54,7 +58,10 @@ type Job struct {
 	Start    time.Time
 }
 
+// ParameterQueue is a list of jobs required to run with the
+// specified modifications
 var ParameterQueue []Job
+
 var name, folder string
 var sess *session.Session
 
