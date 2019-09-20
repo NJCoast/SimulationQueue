@@ -54,6 +54,7 @@ type Job struct {
 	SLR      float64 `json:"slr"`
 	Tide     int     `json:"tide"`
 	Analysis int     `json:"analysis"`
+	Protection int	`json:"protection"`
 	Start    time.Time
 }
 
@@ -238,10 +239,12 @@ func S3MessageQueue(qName string, pQueue *[]Job) {
 							log.Println("Creating jobs for", object.Name)
 
 							// Create Job Queue
-							for tide := 0; tide < 3; tide++ {
-								for analysis := 0; analysis < 3; analysis++ {
-									(*pQueue) = append((*pQueue), Job{ID: uuid.New().String(), Folder: jFolder, Complete: false, SLR: 1.0, Tide: tide, Analysis: analysis})
-									jobsCreated.Inc()
+							for protection := 1; protection <= 3; protection++ {
+								for tide := 0; tide < 3; tide++ {
+									for analysis := 0; analysis < 3; analysis++ {
+										(*pQueue) = append((*pQueue), Job{ID: uuid.New().String(), Folder: jFolder, Complete: false, SLR: 1.0, Protection: protection, Tide: tide, Analysis: analysis})
+										jobsCreated.Inc()
+									}
 								}
 							}
 						}
