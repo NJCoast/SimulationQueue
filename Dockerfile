@@ -1,6 +1,7 @@
-FROM golang:1.10
+FROM golang:1.13.0
 WORKDIR /go/src/github.com/NJCoast/SimulationQueue/
-RUN go get k8s.io/client-go/...
+RUN mkdir -p $GOPATH/k8s.io/ && cd $GOPATH/k8s.io && git clone https://github.com/kubernetes/klog && cd klog
+RUN go get -d k8s.io/client-go/... && cd $GOPATH/k8s.io/klog && git checkout a6a74fbce3a592242b0fc24cd93fd98a4cea0a98 && go install k8s.io/client-go/...
 RUN go get github.com/google/uuid
 RUN go get github.com/gorilla/websocket
 RUN go get github.com/aws/aws-sdk-go/aws
